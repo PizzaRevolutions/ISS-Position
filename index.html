@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+
+<meta charset="utf-8">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<!-- Globe.gl -->
+<script src="https://unpkg.com/globe.gl"></script>
+</head>
+
+<body>
+    <h1 align="center">Posizione Stazione Spaziale Internazionale</h1>
+    <div id="mappa"></div>
+    <p id="informazioni"></p>
+    <script>
+
+
+
+        // 1. Configurazione Icona / Icon Configuration
+        const iconCSS = `
+            font-size: 24px;
+            color: white;
+            text-shadow: 0 0 5px black;
+        `;
+
+        // Tracciamento del percorso / Track the path
+        const pathHistory = [];
+
+        // 2. Inizializzazione del Globo / Initialize Globe
+        const container = document.getElementById('mappa');
+        const myGlobe = Globe()
+            (container)
+            .width(container.clientWidth)
+            .height(container.clientHeight)
+            // Immagine realistica della terra / Realistic earth image
+            .globeImageUrl('//unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+            // Colore di sfondo spaziale / Space background color
+            .backgroundColor('#000000')
+            // Configurazione elementi HTML (Icona ISS) / HTML Elements configuration (ISS Icon)
+            .htmlElementsData([])
+            .htmlElement(d => {
+                const el = document.createElement('div');
+                el.innerHTML = '🛰️ ISS';
+                el.style.cssText = iconCSS;
+                return el;
+            })
+            // Configurazione del percorso / Path configuration
+            .pathsData([])
+            // Colore del percorso (Rosso brillante) / Path color (Bright red)
+            .pathColor(() => 'rgba(255,0,50,1)')
+            .pathStroke(3)
+            .pathDashLength(0.01)
+            .pathDashGap(0.004)
+            // Animazione del tratteggio / Dash animation
+            .pathDashAnimateTime(100000)
+            // Altitudine del percorso (stessa dell'icona) / Path altitude (same as icon)
+            .pathPointAlt(0.1);
+
+        // 3. Ciclo di Aggiornamento / Update Loop
+        // Aggiorna ogni 3 secondi / Update every 3 seconds
+        window.setInterval(aggiornaPosizione, 3000);
+
+        var firstZoom = true;
+
+        /**
+         * Funzione per ottenere la posizione della ISS e aggiornare la mappa
+         * Function to get ISS position and update the map
+         */
+        function aggiornaPosizione() {
+            $.ajax({
+                type: 'GET',
+                // API pubblica per la posizione della ISS / Public API for ISS position
+                url: 'https://api.wheretheiss.at/v1/satellites/25544',
+                dataType: 'json',
+                success: function (data) {
+                    var lat = data.latitude;
+                    var lng = data.longitude;
+                    var alt = data.altitude / 1000; // Altitudine normalizzata / Normalized altitude
+
+                    // Aggiornamento Tabella Dati / Update Data Table
+                    document.getElementById("latitudine").innerHTML = data.latitude.toFixed(3);
+                    document.getElementById("longitudine").innerHTML = data.longitude.toFixed(3);
+                    document.getElementById("altitudine").innerHTML = data.altitude.toFixed(2) + " km";
+                    document.getElementById("velocita").innerHTML = data.velocity.toFixed(2) + " km/h";
+
+                    // Aggiornamento Posizione ISS sul Globo / Update ISS Position on Globe
+                    myGlobe.htmlElementsData([{ lat: lat, lng: lng, alt: 0.1 }]);
+
+                    // Aggiornamento Percorso / Update Path
+                    // Aggiunge il nuovo punto alla cronologia / Add new point to history
+                    pathHistory.push([lat, lng]);
+
+                    // Limita il percorso agli ultimi 500 punti per risparmiare memoria
+                    // Limit path to last 500 points to save memory
+                    if (pathHistory.length > 500) pathHistory.shift();
+
+                    // Aggiorna i dati del percorso sul globo / Update globe path data
+                    myGlobe.pathsData([pathHistory]);
+
+                    // Zoom sulla ISS solo al primo caricamento / Point to ISS only on first load
+                    if (firstZoom) {
+                        myGlobe.pointOfView({ lat: lat, lng: lng, altitude: 2 }, 1000);
+                        firstZoom = false;
+                    }
+                },
+                error: function (err) {
+                    console.error("Errore nel recupero dati ISS / Error fetching ISS data", err);
+                }
+            });
+        };
+    </script>
+
+    <table width="100%">
+        <tr>
+            <th>Latitudine</th>
+            <th>Longitudine</th>
+            <th>Altitudine</th>
+            <th>Velocità</th>
+        </tr>
+        <tr>
+            <td id="latitudine"></td>
+            <td id="longitudine"></td>
+            <td id="altitudine"></td>
+            <td id="velocita"></td>
+        </tr>
+    </table>
+</body>
+
+</html>
